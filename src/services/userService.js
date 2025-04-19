@@ -8,6 +8,7 @@ import { deleteUserAvailableIncome } from '../repositories/incomeRepository.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import ErrorResponse from '../utils/errorResponse.js';
+import { generateVerificationToken, sendVerificationEmail, verifyEmailWithToken, sendEmailChangeVerification } from '../utils/emailService.js';
 
 const registerUser = async (userData) => {
     // Check if user already exists
@@ -51,10 +52,17 @@ const loginUser = async (email, password) => {
     // Remove password from response
     const { password: userPassword, ...userWithoutPassword } = user;
 
-    return {
+    // Check if email is verified and add a warning if not
+    const responseData = {
         ...userWithoutPassword,
         token: generateToken(user.id)
     };
+
+    if (!user.isEmailVerified) {
+        responseData.warning = 'Email not verified. You can verify your email through your account settings.';
+    }
+
+    return responseData;
 };
 
 const getProfile = async (userId) => {
@@ -83,6 +91,46 @@ const updateProfile = async (userId, updateData) => {
     return userWithoutPassword;
 };
 
+const updateEmail = async (userId, newEmail) => {
+    const user = await getUserById(userId);
+    if (!user) {
+        throw new ErrorResponse('User not found', 404);
+    }
+
+    // Check if email is being changed
+    if (user.email === newEmail) {
+        throw new ErrorResponse('New email is the same as current email', 400);
+    }
+
+    // Check if new email already exists for another user
+    const existingUser = await getUserByEmail(newEmail);
+    if (existingUser && existingUser.id !== userId) {
+        throw new ErrorResponse('Email already in use by another account', 400);
+    }
+
+    // Update email and set verification status to false
+    const updatedUser = await updateUser(userId, {
+        email: newEmail,
+        isEmailVerified: false,
+        verificationToken: null,
+        verificationExpires: null
+    });
+
+    // Generate verification token for new email
+    const token = await generateVerificationToken(userId);
+
+    // Send verification email to new address
+    await sendEmailChangeVerification(updatedUser, token, newEmail);
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = updatedUser;
+
+    return {
+        user: userWithoutPassword,
+        message: 'Email updated. Please verify your new email address.'
+    };
+};
+
 const deleteProfile = async (userId) => {
     try {
         // Delete all related records in the correct order
@@ -103,10 +151,49 @@ const deleteProfile = async (userId) => {
     }
 };
 
+// Send a verification email to the user
+const sendVerificationRequest = async (userId) => {
+    const user = await getUserById(userId);
+    if (!user) {
+        throw new ErrorResponse('User not found', 404);
+    }
+
+    if (user.isEmailVerified) {
+        throw new ErrorResponse('Email is already verified', 400);
+    }
+
+    console.log(`Generating verification token for user: ${user.id}`);
+    const token = await generateVerificationToken(user.id);
+    console.log(`Sending verification email to: ${user.email}`);
+    await sendVerificationEmail(user, token);
+    console.log('Verification email sent successfully');
+
+    return { message: 'Verification email sent successfully. Please check your inbox.' };
+};
+
+// Verify user's email with token
+const verifyEmail = async (token) => {
+    if (!token) {
+        throw new ErrorResponse('Verification token is required', 400);
+    }
+
+    return await verifyEmailWithToken(token);
+};
+
+// Check if email is verified
+const checkEmailVerified = async (userId) => {
+    const user = await getUserById(userId);
+    if (!user) {
+        throw new ErrorResponse('User not found', 404);
+    }
+
+    return user.isEmailVerified;
+};
+
 // Generate JWT token
 const generateToken = (id) => {
     return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d'
+        expiresIn: process.env.JWT_EXPIRES_IN || '30d'
     });
 };
 
@@ -115,5 +202,9 @@ export {
     loginUser,
     getProfile,
     updateProfile,
-    deleteProfile
+    updateEmail,
+    deleteProfile,
+    verifyEmail,
+    sendVerificationRequest,
+    checkEmailVerified
 };

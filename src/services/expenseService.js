@@ -30,9 +30,6 @@ export const createExpense = async (userId, expenseData) => {
     // Create expense and update section in parallel
     const [expense, updatedSection] = await Promise.all([
         expenseRepository.createExpense(userId, expenseData),
-        sectionRepository.updateSection(userId, {
-            expenses: section.expenses - expenseData.amount
-        })
     ]);
 
     // Create transaction record
@@ -62,10 +59,7 @@ export const updateExpense = async (id, userId, expenseData) => {
     // If amount is being updated, adjust section balance and create transaction
     if (expenseData.amount !== undefined && expenseData.amount !== originalExpense.amount) {
 
-        // Update section balance
-        await sectionRepository.updateSection(userId, {
-            expenses: section.expenses + originalExpense.amount
-        });
+
 
         if (section.expenses + originalExpense.amount < expenseData.amount) {
             throw new ErrorResponse('Insufficient funds in expense section', 400);

@@ -9,6 +9,7 @@ import transactionRoutes from './src/routes/transactionRoutes.js';
 import expenseRoutes from './src/routes/expenseRoutes.js';
 import investmentRoutes from './src/routes/investmentRoutes.js';
 import incomeRoutes from './src/routes/incomeRoutes.js';
+import reportRoutes from './src/routes/reportRoutes.js';
 import errorHandler from './src/middleware/errorHandler.js';
 import { PrismaClient } from '@prisma/client';
 import { spawn } from 'child_process';
@@ -86,6 +87,7 @@ initializeDatabase().then(() => {
     app.use('/api/expenses', expenseRoutes);
     app.use('/api/investments', investmentRoutes);
     app.use('/api/income', incomeRoutes);
+    app.use('/api/reports', reportRoutes);
 
     // Error handling middleware
     app.use(errorHandler);

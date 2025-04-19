@@ -5,6 +5,12 @@ class CreateUserDto {
         this.name = data.name;
         this.email = data.email;
         this.password = data.password;
+        this.address = data.address || null;
+        this.phoneNumber = data.phoneNumber || null;
+        this.age = data.age || null;
+        this.gender = data.gender || null;
+        this.occupation = data.occupation || null;
+        this.dateOfBirth = data.dateOfBirth || null;
         this.savingsPercent = data.savingsPercent || null;
         this.expensesPercent = data.expensesPercent || null;
         this.investmentsPercent = data.investmentsPercent || null;
@@ -24,6 +30,18 @@ class CreateUserDto {
             throw new ErrorResponse('Invalid email format', 400);
         }
 
+        if (this.phoneNumber && !/^\+?[0-9]{10,15}$/.test(this.phoneNumber)) {
+            throw new ErrorResponse('Invalid phone number format', 400);
+        }
+
+        if (this.age !== null && (isNaN(this.age) || this.age < 0 || this.age > 120)) {
+            throw new ErrorResponse('Age must be between 0 and 120', 400);
+        }
+
+        if (this.gender && !['male', 'female', 'other', 'prefer not to say'].includes(this.gender.toLowerCase())) {
+            throw new ErrorResponse('Invalid gender value', 400);
+        }
+
         if (this.savingsPercent !== null && (this.savingsPercent < 0 || this.savingsPercent > 100)) {
             throw new ErrorResponse('Savings percentage must be between 0 and 100', 400);
         }
@@ -36,7 +54,6 @@ class CreateUserDto {
             throw new ErrorResponse('Investments percentage must be between 0 and 100', 400);
         }
 
-        // Check if total percentages exceed 100%
         const total =
             (this.savingsPercent || 0) +
             (this.expensesPercent || 0) +
@@ -46,7 +63,6 @@ class CreateUserDto {
             throw new ErrorResponse('Total percentages cannot exceed 100%', 400);
         }
 
-        // Check if leftoverAction is valid
         const validActions = ['savings', 'expenses', 'investments'];
         if (this.leftoverAction && !validActions.includes(this.leftoverAction)) {
             throw new ErrorResponse('Invalid leftover action. Must be one of: savings, expenses, investments', 400);
@@ -61,6 +77,12 @@ class UpdateUserDto {
         this.name = data.name;
         this.email = data.email;
         this.password = data.password;
+        this.address = data.address;
+        this.phoneNumber = data.phoneNumber;
+        this.age = data.age;
+        this.gender = data.gender;
+        this.occupation = data.occupation;
+        this.dateOfBirth = data.dateOfBirth;
         this.savingsPercent = data.savingsPercent;
         this.expensesPercent = data.expensesPercent;
         this.investmentsPercent = data.investmentsPercent;
@@ -70,6 +92,18 @@ class UpdateUserDto {
     validate() {
         if (this.email && !/\S+@\S+\.\S+/.test(this.email)) {
             throw new ErrorResponse('Invalid email format', 400);
+        }
+
+        if (this.phoneNumber && !/^\+?[0-9]{10,15}$/.test(this.phoneNumber)) {
+            throw new ErrorResponse('Invalid phone number format', 400);
+        }
+
+        if (this.age !== undefined && this.age !== null && (isNaN(this.age) || this.age < 0 || this.age > 120)) {
+            throw new ErrorResponse('Age must be between 0 and 120', 400);
+        }
+
+        if (this.gender && !['male', 'female', 'other', 'prefer not to say'].includes(this.gender.toLowerCase())) {
+            throw new ErrorResponse('Invalid gender value', 400);
         }
 
         if (this.savingsPercent !== undefined && (this.savingsPercent < 0 || this.savingsPercent > 100)) {
@@ -84,7 +118,6 @@ class UpdateUserDto {
             throw new ErrorResponse('Investments percentage must be between 0 and 100', 400);
         }
 
-        // Check if leftoverAction is valid
         const validActions = ['savings', 'expenses', 'investments'];
         if (this.leftoverAction && !validActions.includes(this.leftoverAction)) {
             throw new ErrorResponse('Invalid leftover action. Must be one of: savings, expenses, investments', 400);

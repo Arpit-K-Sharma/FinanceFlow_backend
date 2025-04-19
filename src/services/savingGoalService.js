@@ -22,33 +22,6 @@ export const createSavingGoal = async (userId, goalData) => {
         throw new ErrorResponse('Invalid transfer type. Must be EXPENSE or INVESTMENT', 400);
     }
 
-    // Format target date
-    if (goalData.targetDate) {
-        try {
-            // For simple date strings like "2025-12-31"
-            if (typeof goalData.targetDate === 'string' && goalData.targetDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                goalData.targetDate = new Date(`${goalData.targetDate}T00:00:00.000Z`);
-            } else {
-                goalData.targetDate = new Date(goalData.targetDate);
-            }
-
-            // Check if date is valid
-            if (isNaN(goalData.targetDate.getTime())) {
-                throw new ErrorResponse(`Invalid date: ${goalData.targetDate}`, 400);
-            }
-
-            // Convert to ISO string
-            goalData.targetDate = goalData.targetDate.toISOString();
-        } catch (error) {
-            if (error instanceof ErrorResponse) {
-                throw error;
-            }
-            throw new ErrorResponse(`Invalid date format: ${error.message}`, 400);
-        }
-    } else {
-        goalData.targetDate = new Date().toISOString();
-    }
-
     // Set initial values
     goalData.currentAmount = goalData.currentAmount || 0;
     goalData.isCompleted = false;
@@ -61,30 +34,6 @@ export const updateSavingGoal = async (id, userId, goalData) => {
     // Validate transfer type if provided
     if (goalData.transferType && !['EXPENSE', 'INVESTMENT'].includes(goalData.transferType)) {
         throw new ErrorResponse('Invalid transfer type. Must be EXPENSE or INVESTMENT', 400);
-    }
-
-    // Format target date if provided
-    if (goalData.targetDate) {
-        try {
-            if (typeof goalData.targetDate === 'string' && goalData.targetDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                goalData.targetDate = new Date(`${goalData.targetDate}T00:00:00.000Z`);
-            } else {
-                goalData.targetDate = new Date(goalData.targetDate);
-            }
-
-            // Check if date is valid
-            if (isNaN(goalData.targetDate.getTime())) {
-                throw new ErrorResponse(`Invalid date: ${goalData.targetDate}`, 400);
-            }
-
-            // Convert to ISO string
-            goalData.targetDate = goalData.targetDate.toISOString();
-        } catch (error) {
-            if (error instanceof ErrorResponse) {
-                throw error;
-            }
-            throw new ErrorResponse(`Invalid date format: ${error.message}`, 400);
-        }
     }
 
     const goal = await savingGoalRepository.getSavingGoalById(id, userId);
@@ -166,7 +115,6 @@ export const contributeFunds = async (id, userId, amount) => {
 
         // Build purpose description for notifications
         const purposeInfo = goal.purpose ? ` for ${goal.purpose}` : '';
-        const itemInfo = goal.targetItem ? ` (${goal.targetItem})` : '';
 
         // Create transactions sequentially to ensure proper section updates
         await transactionService.createTransaction(userId, {
@@ -177,17 +125,19 @@ export const contributeFunds = async (id, userId, amount) => {
             description: `Final contribution to savings goal: ${goal.name}`
         });
 
-        await transactionService.createTransaction(userId, {
-            type: TRANSACTION_TYPES.GOAL_TRANSFER,
-            fromSection: null,
-            toSection: targetSection,
-            amount: goal.targetAmount,
-            description: `Completed goal: ${goal.name} - ${goal.category}${purposeInfo}${itemInfo} - Ready for ${targetSection === 'investments' ? 'investment' : 'purchase'}`
-        });
+        if (targetSection) {
+            await transactionService.createTransaction(userId, {
+                type: TRANSACTION_TYPES.GOAL_TRANSFER,
+                fromSection: null,
+                toSection: targetSection,
+                amount: goal.targetAmount,
+                description: `Completed goal: ${goal.name} - ${goal.category}${purposeInfo} - Ready for ${targetSection === 'investments' ? 'investment' : 'purchase'}`
+            });
+        }
 
         return {
             ...updatedGoal,
-            message: `Goal completed! Amount of ${goal.targetAmount} transferred to ${targetSection}${purposeInfo}${itemInfo}. ${excessAmount > 0 ? `Excess amount of ${excessAmount} returned to savings.` : ''} Remember to make the ${targetSection === 'investments' ? 'investment' : 'purchase'} when you're ready.`
+            message: `Goal completed! Amount of ${goal.targetAmount} transferred to ${targetSection}${purposeInfo}. ${excessAmount > 0 ? `Excess amount of ${excessAmount} returned to savings.` : ''} Remember to make the ${targetSection === 'investments' ? 'investment' : 'purchase'} when you're ready.`
         };
     }
 
@@ -204,7 +154,6 @@ export const contributeFunds = async (id, userId, amount) => {
 
         // Build purpose description for notifications
         const purposeInfo = goal.purpose ? ` for ${goal.purpose}` : '';
-        const itemInfo = goal.targetItem ? ` (${goal.targetItem})` : '';
 
         // Create a transaction record for goal completion
         await transactionService.createTransaction(userId, {
@@ -212,13 +161,13 @@ export const contributeFunds = async (id, userId, amount) => {
             fromSection: null,
             toSection: targetSection,
             amount: updatedGoal.targetAmount,
-            description: `Completed goal: ${goal.name} - ${goal.category}${purposeInfo}${itemInfo} - Ready for ${targetSection === 'investments' ? 'investment' : 'purchase'}`
+            description: `Completed goal: ${goal.name} - ${goal.category}${purposeInfo} - Ready for ${targetSection === 'investments' ? 'investment' : 'purchase'}`
         });
 
         // Return goal with notification
         return {
             ...updatedGoal,
-            message: `Goal completed! Amount of ${updatedGoal.targetAmount} transferred to ${targetSection}${purposeInfo}${itemInfo}. Remember to make the ${targetSection === 'investments' ? 'investment' : 'purchase'} when you're ready.`
+            message: `Goal completed! Amount of ${updatedGoal.targetAmount} transferred to ${targetSection}${purposeInfo}. Remember to make the ${targetSection === 'investments' ? 'investment' : 'purchase'} when you're ready.`
         };
     }
 

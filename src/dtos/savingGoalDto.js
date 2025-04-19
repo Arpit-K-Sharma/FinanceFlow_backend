@@ -5,11 +5,8 @@ class CreateSavingGoalDto {
         this.name = data.name;
         this.targetAmount = data.targetAmount;
         this.category = data.category;
-        this.targetDate = data.targetDate;
-        this.transferType = data.transferType;
-        this.transferId = data.transferId;
+        this.transferType = data.transferType || null;
         this.purpose = data.purpose;
-        this.targetItem = data.targetItem;
     }
 
     validate() {
@@ -64,8 +61,8 @@ class UpdateSavingGoalDto {
         this.name = data.name;
         this.targetAmount = data.targetAmount;
         this.isCompleted = data.isCompleted;
-        this.targetDate = data.targetDate;
-        this.transferType = data.transferType;
+        this.transferType = data.transferType || null;
+        this.purpose = data.purpose;
     }
 
     validate() {

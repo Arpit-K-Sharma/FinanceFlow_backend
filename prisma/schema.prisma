@@ -13,6 +13,18 @@ model User {
   name               String
   email              String         @unique
   password           String
+  address            String?        // Optional address field
+  phoneNumber        String?        // Optional phone number
+  age                Int?           // Optional age
+  gender             String?        // Optional gender
+  occupation         String?        // Optional occupation
+  dateOfBirth        DateTime?      // Optional date of birth
+  isEmailVerified    Boolean        @default(false)
+  emailVerifiedAt    DateTime?      // Timestamp when email was verified
+  verificationToken  String?        
+  verificationExpires DateTime?
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
   savingsBalance     Float          @default(0)  // Remaining savings balance
   savingsPercent     Float?
   expensesPercent    Float?
@@ -45,11 +57,8 @@ model SavingGoal {
   currentAmount Float   @default(0)
   isCompleted   Boolean @default(false)
   category      String  // EMERGENCY, VACATION, VEHICLE, HOME, EDUCATION, OTHER
-  targetDate    DateTime
   transferType  String? // EXPENSE or INVESTMENT
-  transferId    Int?    // ID of the expense or investment it will transfer to
   purpose       String? // Detailed description of what this goal is for
-  targetItem    String? // What specific item/service is being saved for
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   user          User    @relation(fields: [userId], references: [id])
