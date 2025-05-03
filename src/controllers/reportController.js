@@ -64,7 +64,17 @@ export const downloadReport = asyncHandler(async (req, res, next) => {
         const match = filename.match(filenameRegex);
 
         if (!match || match[1] !== req.user.id) {
-            return next(new ErrorResponse('Unauthorized access to report', 403));
+            // Log for debugging
+            console.log('File access attempt:', {
+                filename,
+                extractedId: match ? match[1] : 'no match',
+                userId: req.user.id
+            });
+
+            // Use a less strict comparison for IDs
+            if (!match || String(match[1]) !== String(req.user.id)) {
+                return next(new ErrorResponse('Unauthorized access to report', 403));
+            }
         }
 
         // Set appropriate headers
@@ -131,6 +141,100 @@ export const generateYearlyReport = async (req, res) => {
     } catch (error) {
         console.error('Error generating yearly report:', error);
         return res.status(500).json({ error: 'Failed to generate report' });
+    }
+};
+
+// Get list of available reports for a user
+export const listReports = async (req, res, next) => {
+    try {
+        const userId = req.user.id;
+
+        // Get reports directory
+        const reportsDir = path.join(process.cwd(), 'reports');
+
+        // Ensure the directory exists
+        if (!fs.existsSync(reportsDir)) {
+            fs.mkdirSync(reportsDir, { recursive: true });
+        }
+
+        // Read all files in the directory
+        const files = fs.readdirSync(reportsDir);
+
+        // Filter files that belong to this user
+        // Format: report-userId-period-value-timestamp.pdf
+        const userReports = files.filter(file => {
+            const fileParts = file.split('-');
+            // Check if file format matches and user ID matches
+            return (
+                file.startsWith('report-') &&
+                file.endsWith('.pdf') &&
+                fileParts.length >= 4 &&
+                String(fileParts[1]) === String(userId)
+            );
+        });
+
+        // Sort by date (newest first)
+        userReports.sort((a, b) => {
+            // Extract timestamps from filenames
+            const timestampA = a.split('-').pop().replace('.pdf', '');
+            const timestampB = b.split('-').pop().replace('.pdf', '');
+            return parseInt(timestampB) - parseInt(timestampA);
+        });
+
+        res.json({
+            success: true,
+            count: userReports.length,
+            reports: userReports
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Delete a generated report
+export const deleteReport = async (req, res, next) => {
+    try {
+        const { filename } = req.params;
+        const userId = req.user.id;
+
+        // Build file path
+        const filePath = path.join(process.cwd(), 'reports', filename);
+
+        // Check if file exists
+        if (!await fs.pathExists(filePath)) {
+            return res.status(404).json({
+                success: false,
+                message: 'Report not found'
+            });
+        }
+
+        // Extract user ID from filename and verify ownership
+        const fileParts = filename.split('-');
+
+        // Verify file belongs to this user
+        // Format: report-userId-period-value-timestamp.pdf
+        if (!filename.startsWith('report-') ||
+            !filename.endsWith('.pdf') ||
+            fileParts.length < 4 ||
+            String(fileParts[1]) !== String(userId)) {
+
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized access to report'
+            });
+        }
+
+        // Delete the file
+        await fs.unlink(filePath);
+
+        res.status(200).json({
+            success: true,
+            message: 'Report deleted successfully'
+        });
+    } catch (error) {
+        console.error('Error deleting report:', error);
+        next(error);
     }
 };
 

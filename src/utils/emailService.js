@@ -59,11 +59,11 @@ export const generateVerificationToken = async (userId) => {
 // Send verification email
 export const sendVerificationEmail = async (user, token) => {
     try {
-        // Get frontend URL from environment or default
-        const frontendUrl = process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:8080';
+        // Use backend API URL for verification
+        const backendUrl = process.env.BASE_URL || 'http://localhost:5000';
 
-        // Create verification URL that points directly to the frontend verification page
-        const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+        // Create verification URL that points directly to the backend API endpoint
+        const verificationUrl = `${backendUrl}/api/users/verify-email/${token}`;
 
         // Email content
         const mailOptions = {
@@ -106,11 +106,11 @@ export const sendVerificationEmail = async (user, token) => {
 // Send email change verification email
 export const sendEmailChangeVerification = async (user, token, newEmail) => {
     try {
-        // Get frontend URL from environment or default
-        const frontendUrl = process.env.FRONTEND_URL || process.env.BASE_URL || 'http://localhost:8080';
+        // Use backend API URL for verification
+        const backendUrl = process.env.BASE_URL || 'http://localhost:5000';
 
-        // Create verification URL that points directly to the frontend verification page
-        const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+        // Create verification URL that points directly to the backend API endpoint
+        const verificationUrl = `${backendUrl}/api/users/verify-email/${token}`;
 
         // Email content
         const mailOptions = {
@@ -202,8 +202,25 @@ export const verifyEmailWithToken = async (token) => {
     try {
         console.log('Verifying email with token:', token);
 
-        // Find user with this token in the database
-        const user = await prisma.user.findFirst({
+        // First, check if there's a user with this token, even if expired
+        let user = await prisma.user.findFirst({
+            where: {
+                verificationToken: token
+            }
+        });
+
+        // If found a user but token is expired, check if they're already verified
+        if (user && user.isEmailVerified) {
+            console.log(`User ${user.id} email is already verified`);
+            return {
+                success: true,
+                alreadyVerified: true,
+                message: 'Email is already verified'
+            };
+        }
+
+        // Try to find user with valid unexpired token
+        user = await prisma.user.findFirst({
             where: {
                 verificationToken: token,
                 verificationExpires: {
@@ -230,7 +247,11 @@ export const verifyEmailWithToken = async (token) => {
         });
 
         console.log(`User ${user.id} email verified successfully`);
-        return true;
+        return {
+            success: true,
+            alreadyVerified: false,
+            message: 'Email verified successfully'
+        };
     } catch (error) {
         console.error('Error verifying email:', error);
         throw error;

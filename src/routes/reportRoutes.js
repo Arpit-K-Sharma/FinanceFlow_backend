@@ -18,4 +18,10 @@ router.get('/generate/:period/:value', requireEmailVerified, reportController.ge
 // Download a generated report
 router.get('/download/:filename', requireEmailVerified, reportController.downloadReport);
 
+// Delete a generated report
+router.delete('/delete/:filename', requireEmailVerified, reportController.deleteReport);
+
+// List all available reports for the current user
+router.get('/list', requireEmailVerified, reportController.listReports);
+
 export default router; 

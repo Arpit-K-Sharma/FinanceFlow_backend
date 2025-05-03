@@ -177,7 +177,15 @@ const verifyEmail = async (token) => {
         throw new ErrorResponse('Verification token is required', 400);
     }
 
-    return await verifyEmailWithToken(token);
+    // Get the complete verification response
+    const verificationResult = await verifyEmailWithToken(token);
+
+    // Return the complete result
+    return {
+        success: verificationResult.success,
+        alreadyVerified: verificationResult.alreadyVerified || false,
+        message: verificationResult.message
+    };
 };
 
 // Check if email is verified
